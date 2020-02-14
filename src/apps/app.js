@@ -1,8 +1,9 @@
-var Helpers = require('./helpers');
-var Exception = require('./exception');
-var LightBox = require('./lightbox');
-var ChildWindow = require('./childwindow');
-var Device = require('./device');
+var Helpers = require('../helpers');
+var Exception = require('../exception');
+var eventTypes = require('./eventTypes');
+
+var AppWidget = require('./app-widget');
+var AppCommon = require('./app-common');
 
 module.exports = (function () {
     function ready(fn) {
@@ -13,28 +14,14 @@ module.exports = (function () {
         }
     }
 
+    App.eventTypes = eventTypes;
+
     function App() {
         this.config = Object.assign({}, DEFAULT_CONFIG);
         this.eventObject = Helpers.addEventObject(this);
         this.isInitiated = false;
         this.postMessage = null;
     }
-
-    App.eventTypes = {
-        INIT: 'init',
-        OPEN: 'open',
-        OPEN_WINDOW: 'open-window',
-        OPEN_LIGHTBOX: 'open-lightbox',
-        LOAD: 'load',
-        CLOSE: 'close',
-        CLOSE_WINDOW: 'close-window',
-        CLOSE_LIGHTBOX: 'close-lightbox',
-        STATUS: 'status',
-        STATUS_INVOICE: 'status-invoice',
-        STATUS_DELIVERING: 'status-delivering',
-        STATUS_TROUBLED: 'status-troubled',
-        STATUS_DONE: 'status-done'
-    };
 
     var DEFAULT_CONFIG = {
         access_token: null,
@@ -52,13 +39,9 @@ module.exports = (function () {
     App.prototype.isInitiated = false;
     App.prototype.eventObject = Helpers.addEventObject(this);
 
-    App.prototype.getPaystationUrl = function () {
-        var SANDBOX_PAYSTATION_URL = 'https://sandbox-secure.xsolla.com/paystation2/?';
-        return this.config.sandbox ? SANDBOX_PAYSTATION_URL : 'https://' + this.config.host + '/paystation2/?';
-    };
-
     App.prototype.checkConfig = function () {
-        if (Helpers.isEmpty(this.config.access_token) && Helpers.isEmpty(this.config.access_data)) {
+        if (Helpers.isEmpty(this.config.access_token) && Helpers.isEmpty(this.config.access_data) && Helpers.isEmpty(this.config.sku))
+        {
             this.throwError('No access token given');
         }
 
@@ -94,6 +77,9 @@ module.exports = (function () {
      * @param options
      */
     App.prototype.init = function(options) {
+
+        mixWithSpecificApp(this, options);
+
         function initialize(options) {
             this.isInitiated = true;
             this.config = Object.assign({}, DEFAULT_CONFIG, options);
@@ -123,92 +109,6 @@ module.exports = (function () {
         }
         ready(initialize.bind(this, options));
     }
-
-    /**
-     * Open payment interface (PayStation)
-     */
-    App.prototype.open = function () {
-        this.checkConfig();
-        this.checkApp();
-
-        var triggerSplitStatus = (function (data) {
-            switch (((data || {}).paymentInfo || {}).status) {
-                case 'invoice':
-                    this.triggerEvent(App.eventTypes.STATUS_INVOICE, data);
-                    break;
-                case 'delivering':
-                    this.triggerEvent(App.eventTypes.STATUS_DELIVERING, data);
-                    break;
-                case 'troubled':
-                    this.triggerEvent(App.eventTypes.STATUS_TROUBLED, data);
-                    break;
-                case 'done':
-                    this.triggerEvent(App.eventTypes.STATUS_DONE, data);
-                    break;
-            }
-        }).bind(this);
-
-        var query = {};
-        if (this.config.access_token) {
-            query.access_token = this.config.access_token;
-        } else {
-            query.access_data = JSON.stringify(this.config.access_data);
-        }
-
-
-
-        var url = this.getPaystationUrl() + Helpers.param(query);
-        var that = this;
-
-        function handleStatus(event) {
-            var statusData = event.detail;
-            that.triggerEvent(App.eventTypes.STATUS, statusData);
-            triggerSplitStatus(statusData);
-        }
-
-        this.postMessage = null;
-        if ((new Device).isMobile()) {
-            var childWindow = new ChildWindow;
-            childWindow.on('open', function handleOpen() {
-                that.postMessage = childWindow.getPostMessage();
-                that.triggerEvent(App.eventTypes.OPEN);
-                that.triggerEvent(App.eventTypes.OPEN_WINDOW);
-                childWindow.off('open', handleOpen);
-            });
-            childWindow.on('load', function handleLoad() {
-                that.triggerEvent(App.eventTypes.LOAD);
-                childWindow.off('load', handleLoad);
-            });
-            childWindow.on('close', function handleClose() {
-                that.triggerEvent(App.eventTypes.CLOSE);
-                that.triggerEvent(App.eventTypes.CLOSE_WINDOW);
-                childWindow.off('status', handleStatus);
-                childWindow.off('close', handleClose);
-            });
-            childWindow.on('status', handleStatus);
-            childWindow.open(url, this.config.childWindow);
-        } else {
-            var lightBox = new LightBox;
-            lightBox.on('open', function handleOpen() {
-                that.postMessage = lightBox.getPostMessage();
-                that.triggerEvent(App.eventTypes.OPEN);
-                that.triggerEvent(App.eventTypes.OPEN_LIGHTBOX);
-                lightBox.off('open', handleOpen);
-            });
-            lightBox.on('load', function handleLoad() {
-                that.triggerEvent(App.eventTypes.LOAD);
-                lightBox.off('load', handleLoad);
-            });
-            lightBox.on('close', function handleClose() {
-                that.triggerEvent(App.eventTypes.CLOSE);
-                that.triggerEvent(App.eventTypes.CLOSE_LIGHTBOX);
-                lightBox.off('status', handleStatus);
-                lightBox.off('close', handleClose);
-            });
-            lightBox.on('status', handleStatus);
-            lightBox.openFrame(url, this.config.lightbox);
-        }
-    };
 
     /**
      * Attach an event handler function for one or more events to the widget
@@ -253,6 +153,18 @@ module.exports = (function () {
             this.postMessage.on.apply(this.postMessage, arguments);
         }
     };
+
+    function mixWithSpecificApp(context, options) {
+
+        var mixingApp = AppCommon;
+
+        if (options.embed_type === 'widget') {
+            mixingApp = AppWidget;
+        }
+
+        context.__proto__ = Object.assign({}, mixingApp.prototype, context.__proto__);
+
+    }
 
     return App;
 })();
