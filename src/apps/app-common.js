@@ -14,7 +14,7 @@ module.exports = (function () {
 
     AppCommon.prototype.getPaystationUrl = function () {
         var SANDBOX_PAYSTATION_URL = 'https://sandbox-secure.xsolla.com/paystation2/?';
-        return this.config.sandbox ? SANDBOX_PAYSTATION_URL : 'https://' + this.config.host + '/paystation2/?';
+        return this.config.sandbox ? SANDBOX_PAYSTATION_URL : 'https://' + this.config.host + '?';
     };
 
     AppCommon.prototype.open = function () {
