@@ -160,8 +160,6 @@ module.exports = (function () {
                 childWindow.off('close', handleClose);
             });
             childWindow.on('status', handleStatus);
-            console.log('here');
-
             childWindow.open(url, this.config.childWindow);
     } else {
             var lightBox = new LightBox;
@@ -182,8 +180,6 @@ module.exports = (function () {
                 lightBox.off('close', handleClose);
             });
             lightBox.on('status', handleStatus);
-            console.log('or here');
-
             lightBox.openFrame(url, this.config.lightbox);
         }
     };
