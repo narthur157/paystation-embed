@@ -1,5 +1,5 @@
 var Helpers = require('./helpers')
-var App = require('./apps/app');
+var App = require('./app');
 var polyfills = require('./polyfills');
 
 polyfills.applyPolyfills();
