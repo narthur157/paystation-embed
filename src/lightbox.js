@@ -142,8 +142,8 @@ module.exports = (function () {
         var lightBoxSpinnerElement = lightBoxElement.querySelector('.' + CLASS_PREFIX + '-spinner');
 
         var psDimensions = {
-            width: '0px',
-            height: '0px'
+            width: withDefaultPXUnit(MIN_PS_DIMENSIONS.width),
+            height: withDefaultPXUnit(MIN_PS_DIMENSIONS.height)
         };
 
         function withDefaultPXUnit(value) {
@@ -278,6 +278,7 @@ module.exports = (function () {
             var timeout = !options.width || !options.height ? 30000 : 1000; //30000 if psDimensions will not arrive
             loadTimer = global.setTimeout(function () {
                 showContent();
+                lightBoxResize();
             }, timeout);
             lightBoxIframeElement.removeEventListener('load', handleLoad);
 
